@@ -80,3 +80,39 @@ chore: maintain project config or tool
 
 ## License
 This project is licensed under the MIT License.
+
+# Services
+
+## Backend (pixel-api)
+
+### Requirements
+- Python 3.10+
+- FastAPI
+- Uvicorn
+
+### How to Run
+```bash
+# Run in pixel-api fold and setup
+cd ./services/pixel-api
+pip install -r requirements.txt
+
+# Run uvicorn
+uvicorn app.main:app --reload
+```
+
+Now we can see the web page throw `http://127.0.0.1:8000`
+
+To test click, using this command:
+```bash
+curl -X POST http://127.0.0.1:8000/pixels/click -H "Content-Type: application/json" -d '{"x":1,"y":2}'
+```
+If it is PowerShell, using this instead:
+```bash
+curl -Method POST http://127.0.0.1:8000/pixels/click -Headers @{"Content-Type"="application/json"} -Body '{"x":1,"y":2}'
+```
+
+Expected Result:
+```json
+{"x":1,"y":2,"version":1}
+```
+Repeated calls will increase version.
