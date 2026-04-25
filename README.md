@@ -25,6 +25,38 @@ The main goal is to design and evaluate a distributed system with the following 
 ### 5. Platform Accessibility
 - The system is accessible through a standard web interface, allowing consistent usage across different devices and browsers.
 
+## System Architecture
+
+```text
+User (Browser)
+      ↓
+Ingress / Gateway
+      ↓
+Web Service
+      ↓
+Pixel API Service
+      ↓
+Storage Layer
+      ↓
+Persistent Volume
+```
+
+## Project Structure
+```text
+k8s-pixel-field/
+├── services/        # Application services
+│   ├── pixel-api/   # Backend API
+│   └── web/         # Frontend UI
+│
+├── deploy/          # Deployment configuration
+│   ├── k8s/         # Kubernetes manifests
+│   └── docker/      # Local / build configuration 
+│
+├── docs/            # Architecture and design notes
+├── scripts/         # Helper scripts
+└── tests/           # Tests
+```
+
 ## Development Workflow
 - The `main` branch is protected and must remain stable.
 - Create a new branch for each feature or fix.
