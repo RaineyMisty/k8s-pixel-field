@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>PixelField</title>
+    <style>
+        #field {
+            display: grid;
+            grid-template-columns: repeat(40, 20px);
+            grid-template-rows: repeat(30, 20px);
+            gap: 1px;
+            padding: 10px;
+        }
+
+        .pixel {
+            width: 20px;
+            height: 20px;
+            background: #222;
+        }
+    </style>
+</head>
+<body>
+    <div id="field"></div>
+    <script>
+        const WIDTH = 40;
+        const HEIGHT = 30;
+        const colors = [
+            "#222222",
+            "#e63946",
+            "#ffffff"
+        ]
+        const field = document.getElementById("field");
+        for(let y=0; y<HEIGHT; y++) {
+            for(let x=0; x<WIDTH; x++) {
+                const cell = document.createElement("div");
+                cell.className = 'pixel';
+                field.appendChild(cell);
+            }
+        }
+    </script>
+</body>
+</html>
