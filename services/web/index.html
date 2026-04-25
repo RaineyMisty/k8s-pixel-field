@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PixelField</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0d0d0d;
+    }
+
+    #field {
+      display: grid;
+      gap: 1px;
+      padding: 16px;
+    }
+
+    .pixel {
+      width: 18px;
+      height: 18px;
+      background: #171717;
+      border: 1px solid #303030;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div id="field"></div>
+  <script>
+    const CELL_SIZE = 18;
+    const GAP = 1;
+    const FIELD_PADDING = 16;
+
+    let WIDTH = 0;
+    let HEIGHT = 0;
+
+    const colors = [
+      "#171717", // base black
+      // The Starry Night 2 - Van Gogh
+      "#f8e9a6",
+      "#ffd84d",
+      "#f4b430",
+      "#3959bf",
+      "#6c99ea",
+      "#afcef3"
+    ];
+
+    /*
+      "#414b9e", // chinese blue
+      "#9792cb", // ceil
+      "#aa74a0", // pearly purple
+      "#e2c99e", // desert sand
+      "#852736"  // antique ruby
+    */
+
+    /*
+      // The Starry Night - Van Gogh
+      "#d4bc2a",
+      "#cdd68a",
+      "#a9bbad",
+      "#5f7eac",
+      "#4263a3",
+      "#2b3d6e"
+    */
+
+    const field = document.getElementById("field");
+    
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+    });
+
+    function randomIndex() {
+      let index = Math.floor(Math.random() * colors.length);
+      return index;
+    }
+
+    function updateGridSize() {
+      const padding = FIELD_PADDING * 2;
+
+      WIDTH = Math.floor((window.innerWidth - padding) / (CELL_SIZE + GAP));
+      HEIGHT = Math.floor((window.innerHeight - padding) / (CELL_SIZE + GAP));
+
+      field.style.gridTemplateColumns = `repeat(${WIDTH}, ${CELL_SIZE}px)`;
+      field.style.gridTemplateRows = `repeat(${HEIGHT}, ${CELL_SIZE}px)`;
+    }
+
+    function changeColor(cell, direction) {
+      let index = Number(cell.dataset.colorIndex);
+      index = (index + direction + colors.length) % colors.length;
+
+      cell.dataset.colorIndex = String(index);
+      cell.style.background = colors[index];
+    }
+
+    function render() {
+      updateGridSize();
+
+      field.innerHTML = "";
+
+
+      for(let y=0; y<HEIGHT; y++) {
+        for(let x=0; x<WIDTH; x++) {
+          const cell = document.createElement("div");
+          
+          cell.className = "pixel";
+          // Initial with black wall
+          cell.dataset.colorIndex = "0";
+          cell.style.background = colors[0];
+          // Initial with colorful wall (for test)
+          // const index = randomIndex();
+          // cell.dataset.colorIndex = String(index);
+          // cell.style.background = colors[index];
+
+          cell.onmousedown = (event) => {
+            if (event.button === 0){
+              changeColor(cell, +1);
+            }
+            else if (event.button === 2) {
+              changeColor(cell, -1);
+            }
+          };
+
+          field.appendChild(cell);
+        }
+      }
+    }
+
+    window.addEventListener("resize", render);
+
+    render();
+  </script>
+</body>
+</html>
