@@ -1,42 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>PixelField</title>
-    <style>
-        #field {
-            display: grid;
-            grid-template-columns: repeat(40, 20px);
-            grid-template-rows: repeat(30, 20px);
-            gap: 1px;
-            padding: 10px;
-        }
+  <meta charset="UTF-8" />
+  <title>PixelField</title>
+  <style>
+    #field {
+      display: grid;
+      grid-template-columns: repeat(40, 20px);
+      grid-template-rows: repeat(30, 20px);
+      gap: 1px;
+      padding: 10px;
+    }
 
-        .pixel {
-            width: 20px;
-            height: 20px;
-            background: #222;
-        }
-    </style>
+    .pixel {
+      width: 20px;
+      height: 20px;
+      background: #1a1a1a;
+      border: 1px solid #262626;
+    }
+  </style>
 </head>
 <body>
-    <div id="field"></div>
-    <script>
-        const WIDTH = 40;
-        const HEIGHT = 30;
-        const colors = [
-            "#222222",
-            "#e63946",
-            "#ffffff"
-        ]
-        const field = document.getElementById("field");
-        for(let y=0; y<HEIGHT; y++) {
-            for(let x=0; x<WIDTH; x++) {
-                const cell = document.createElement("div");
-                cell.className = 'pixel';
-                field.appendChild(cell);
-            }
-        }
-    </script>
+  <div id="field"></div>
+  <script>
+    const WIDTH = 40;
+    const HEIGHT = 30;
+    const colors = [
+      "#1a1a1a",
+      "#3b82f6",
+      "#22c55e",
+      "#f59e0b"
+    ]
+    const field = document.getElementById("field");
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+    });
+
+    function changeColor(cell, direction) {
+      let index = Number(cell.dataset.colorIndex);
+      index = (index + direction + colors.length) % colors.length;
+      cell.dataset.colorIndex = String(index);
+      cell.style.background = colors[index];
+    }
+
+    for(let y=0; y<HEIGHT; y++) {
+      for(let x=0; x<WIDTH; x++) {
+        const cell = document.createElement("div");
+        
+        cell.className = "pixel";
+        cell.dataset.colorIndex = "0";
+        cell.style.background = colors[0];
+
+        cell.onmousedown = (event) => {
+          if (event.button === 0){
+            changeColor(cell, +1);
+          }
+          else if (event.button === 2) {
+            changeColor(cell, -1);
+          }
+        };
+        field.appendChild(cell);
+      }
+    }
+  </script>
 </body>
 </html>
