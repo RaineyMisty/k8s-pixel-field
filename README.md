@@ -48,13 +48,8 @@ k8s-pixel-field/
 │   ├── pixel-api/   # Backend API
 │   └── web/         # Frontend UI
 │
-├── deploy/          # Deployment configuration
-│   ├── k8s/         # Kubernetes manifests
-│   └── docker/      # Local / build configuration 
-│
-├── docs/            # Architecture and design notes
-├── scripts/         # Helper scripts
-└── tests/           # Tests
+└── deploy/          # Deployment configuration
+    └── k8s/         # Kubernetes manifests
 ```
 
 ## Development Workflow

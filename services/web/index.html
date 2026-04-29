@@ -6,33 +6,62 @@
   <style>
     body {
       margin: 0;
-      background: #0d0d0d;
+      background: radial-gradient(circle at top, #141821 0%, #090b10 70%);
+      color: #d6dae6;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    #status {
+      position: fixed;
+      top: 8px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(9, 11, 16, 0.75);
+      border: 1px solid #2b3242;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 12px;
+      line-height: 1.3;
+      backdrop-filter: blur(2px);
+      white-space: pre;
     }
 
     #field {
       display: grid;
       gap: 1px;
-      padding: 16px;
+      padding: 44px 16px 16px;
     }
 
     .pixel {
       width: 18px;
       height: 18px;
-      background: #171717;
-      border: 1px solid #303030;
+      background: #1f2531;
+      border: 1px solid #3d4557;
       box-sizing: border-box;
     }
   </style>
 </head>
 <body>
+  <div id="status">Initializing...</div>
   <div id="field"></div>
   <script>
     const CELL_SIZE = 18;
     const GAP = 1;
     const FIELD_PADDING = 16;
 
+    function resolveDefaultApiBase() {
+      if (window.location.protocol === "file:") {
+        return "http://127.0.0.1:8080";
+      }
+
+      return "";
+    } 
+
+    const API_BASE = window.PIXEL_API_URL || resolveDefaultApiBase();
+
     let WIDTH = 0;
     let HEIGHT = 0;
+    let resizeTimer = null;
 
     const colors = [
       "#171717", // base black
@@ -64,6 +93,14 @@
     */
 
     const field = document.getElementById("field");
+    const status = document.getElementById("status");
+    const cellsByCoordinate = new Map();
+
+    function setStatus(message, isError) {
+      status.textContent = message;
+      status.style.borderColor = isError ? "#7a2d2d" : "#2b3242";
+      status.style.color = isError ? "#ffb6b6" : "#d6dae6";
+    }
     
     document.addEventListener("contextmenu", (e) => {
       e.preventDefault();
@@ -90,12 +127,64 @@
 
       cell.dataset.colorIndex = String(index);
       cell.style.background = colors[index];
+
+      return index;
     }
 
-    function render() {
+    function setCellColor(cell, colorIndex) {
+      const bounded = ((colorIndex % colors.length) + colors.length) % colors.length;
+      cell.dataset.colorIndex = String(bounded);
+      cell.style.background = colors[bounded];
+    }
+
+    function coordinateKey(x, y) {
+      return `${x},${y}`;
+    }
+
+    async function loadPixels() {
+      try {
+        const response = await fetch(`${API_BASE}/pixels?width=${WIDTH}&height=${HEIGHT}`);
+        if (!response.ok) {
+          throw new Error(`GET /pixels failed: ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const pixels = Array.isArray(payload.pixels) ? payload.pixels : [];
+
+        for (const pixel of pixels) {
+          const key = coordinateKey(pixel.x, pixel.y);
+          const cell = cellsByCoordinate.get(key);
+          if (cell) {
+            setCellColor(cell, Number(pixel.colorIndex));
+          }
+        }
+
+        setStatus(`API connected\n${API_BASE}`, false);
+      } catch (error) {
+        setStatus(`API offline (local drawing still works)\n${API_BASE}`, true);
+        console.error("Failed to load pixels:", error);
+      }
+    }
+
+    async function persistPixel(x, y, colorIndex) {
+      const response = await fetch(`${API_BASE}/pixels/${x}/${y}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ colorIndex })
+      });
+
+      if (!response.ok) {
+        throw new Error(`PUT /pixels/${x}/${y} failed: ${response.status}`);
+      }
+    }
+
+    async function render() {
       updateGridSize();
 
       field.innerHTML = "";
+      cellsByCoordinate.clear();
 
 
       for(let y=0; y<HEIGHT; y++) {
@@ -106,26 +195,54 @@
           // Initial with black wall
           cell.dataset.colorIndex = "0";
           cell.style.background = colors[0];
+          cell.dataset.x = String(x);
+          cell.dataset.y = String(y);
           // Initial with colorful wall (for test)
           // const index = randomIndex();
           // cell.dataset.colorIndex = String(index);
           // cell.style.background = colors[index];
 
-          cell.onmousedown = (event) => {
+          cell.onmousedown = async (event) => {
+            const prevIndex = Number(cell.dataset.colorIndex);
+
             if (event.button === 0){
-              changeColor(cell, +1);
+              const newIndex = changeColor(cell, +1);
+              try {
+                await persistPixel(x, y, newIndex);
+                setStatus(`Saved (${x},${y})\n${API_BASE}`, false);
+              } catch (error) {
+                setCellColor(cell, prevIndex);
+                setStatus(`Save failed (${x},${y})\n${API_BASE}`, true);
+                console.error("Failed to save pixel:", error);
+              }
             }
             else if (event.button === 2) {
-              changeColor(cell, -1);
+              const newIndex = changeColor(cell, -1);
+              try {
+                await persistPixel(x, y, newIndex);
+                setStatus(`Saved (${x},${y})\n${API_BASE}`, false);
+              } catch (error) {
+                setCellColor(cell, prevIndex);
+                setStatus(`Save failed (${x},${y})\n${API_BASE}`, true);
+                console.error("Failed to save pixel:", error);
+              }
             }
           };
 
+          cellsByCoordinate.set(coordinateKey(x, y), cell);
           field.appendChild(cell);
         }
       }
+
+      await loadPixels();
     }
 
-    window.addEventListener("resize", render);
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        render();
+      }, 120);
+    });
 
     render();
   </script>
