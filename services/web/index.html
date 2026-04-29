@@ -54,8 +54,9 @@
         return "http://127.0.0.1:8080";
       }
 
-      return "";
-    } 
+      const host = window.location.hostname || "127.0.0.1";
+      return `${window.location.protocol}//${host}:8080`;
+    }
 
     const API_BASE = window.PIXEL_API_URL || resolveDefaultApiBase();
 
