@@ -48,29 +48,9 @@ k8s-pixel-field/
 │   ├── pixel-api/   # Backend API
 │   └── web/         # Frontend UI
 │
-├── deploy/          # Deployment configuration
-│   ├── k8s/         # Kubernetes manifests
-│   └── docker/      # Local / build configuration 
-│
-├── docs/            # Architecture and design notes
-├── scripts/         # Helper scripts
-└── tests/           # Tests
+└── deploy/          # Deployment configuration
+    └── k8s/         # Kubernetes manifests
 ```
-## Endpoints
-- `GET /health`
-- `GET /pixels?width=<n>&height=<n>`
-- `PUT /pixels/:x/:y` with JSON body `{ "colorIndex": <int> }`
-
-## Run
-
-cd services/pixel-api
-npm start
-
-- In seperate terminal 
-cd services/web
-python3 -m http.server 5500
-
-- open html 
 
 ## Development Workflow
 - The `main` branch is protected and must remain stable.
@@ -95,39 +75,3 @@ chore: maintain project config or tool
 
 ## License
 This project is licensed under the MIT License.
-
-# Services
-
-## Backend (pixel-api)
-
-### Requirements
-- Python 3.10+
-- FastAPI
-- Uvicorn
-
-### How to Run
-```bash
-# Run in pixel-api fold and setup
-cd ./services/pixel-api
-pip install -r requirements.txt
-
-# Run uvicorn
-uvicorn app.main:app --reload
-```
-
-Now we can see the web page throw `http://127.0.0.1:8000`
-
-To test click, using this command:
-```bash
-curl -X POST http://127.0.0.1:8000/pixels/click -H "Content-Type: application/json" -d '{"x":1,"y":2}'
-```
-If it is PowerShell, using this instead:
-```bash
-curl -Method POST http://127.0.0.1:8000/pixels/click -Headers @{"Content-Type"="application/json"} -Body '{"x":1,"y":2}'
-```
-
-Expected Result:
-```json
-{"x":1,"y":2,"version":1}
-```
-Repeated calls will increase version.
