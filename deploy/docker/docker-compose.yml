@@ -1,0 +1,28 @@
+services:
+  pixel-api:
+    build:
+      context: ../../services/pixel-api
+      dockerfile: Dockerfile
+    container_name: pixelfield-api
+    ports:
+      - "8080:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - DATA_DIR=/data
+      - DATA_FILE=/data/pixels.json
+    volumes:
+      - pixel_data:/data
+
+  web:
+    build:
+      context: ../../services/web
+      dockerfile: Dockerfile
+    container_name: pixelfield-web
+    ports:
+      - "5500:80"
+    depends_on:
+      - pixel-api
+
+volumes:
+  pixel_data:
