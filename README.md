@@ -56,6 +56,21 @@ k8s-pixel-field/
 ├── scripts/         # Helper scripts
 └── tests/           # Tests
 ```
+## Endpoints
+- `GET /health`
+- `GET /pixels?width=<n>&height=<n>`
+- `PUT /pixels/:x/:y` with JSON body `{ "colorIndex": <int> }`
+
+## Run
+
+cd services/pixel-api
+npm start
+
+- In seperate terminal 
+cd services/web
+python3 -m http.server 5500
+
+- open html 
 
 ## Development Workflow
 - The `main` branch is protected and must remain stable.
