@@ -3,6 +3,10 @@ FROM node:22-alpine
 WORKDIR /app
 
 COPY package.json ./
+
+# Install dependencies (needed for the ws WebSocket package)
+RUN npm install --omit=dev
+
 COPY server.js ./
 COPY data ./data
 
