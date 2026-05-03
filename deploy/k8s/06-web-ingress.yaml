@@ -1,0 +1,37 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pixelfield-ingress
+  namespace: pixelfield
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: pixel-api-service
+                port:
+                  number: 8080
+          - path: /pixels
+            pathType: Prefix
+            backend:
+              service:
+                name: pixel-api-service
+                port:
+                  number: 8080
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: pixel-api-service
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web-service
+                port:
+                  number: 80

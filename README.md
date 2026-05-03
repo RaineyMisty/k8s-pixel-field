@@ -1,5 +1,17 @@
 # PixelField
 
+## Live Demo
+
+<p align="center">
+  <a href="http://18.191.166.120/">
+    <strong>🎮 Play PixelField Live →</strong>
+  </a>
+</p>
+
+<p align="center">
+  A real-time collaborative pixel canvas deployed on k8s.
+</p>
+
 ## Introduction
 PixelField is a shared pixel where users can leave their marks in a continuously evolving two-dimensional space.
 
@@ -30,15 +42,21 @@ The main goal is to design and evaluate a distributed system with the following 
 ```text
 User (Browser)
       ↓
-Ingress / Gateway
+Ingress (Traefik on port 80)
       ↓
-Web Service
+Path-based routing
+      ├── /          → web-service → web-deployment → Nginx static frontend
+      ├── /pixels    → pixel-api-service → pixel-api-deployment → Node.js API
+      ├── /ws        → pixel-api-service → pixel-api-deployment → WebSocket
+      └── /health    → pixel-api-service → pixel-api-deployment → health check
       ↓
-Pixel API Service
+Pixel API Deployment
       ↓
-Storage Layer
+PersistentVolumeClaim: pixel-data-pvc
       ↓
 Persistent Volume
+      ↓
+pixels.json
 ```
 
 ## Project Structure

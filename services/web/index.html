@@ -78,15 +78,13 @@
 
     function resolveApiBase() {
       if (window.location.protocol === "file:") return "http://127.0.0.1:8080";
-      const host = window.location.hostname || "127.0.0.1";
-      return `${window.location.protocol}//${host}:8080`;
+      return `${window.location.protocol}//${window.location.host}`;
     }
 
     function resolveWsBase() {
       if (window.location.protocol === "file:") return "ws://127.0.0.1:8080";
-      const host     = window.location.hostname || "127.0.0.1";
       const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
-      return `${wsScheme}//${host}:8080`;
+      return `${wsScheme}//${window.location.host}`;
     }
 
     const API_BASE = window.PIXEL_API_URL || resolveApiBase();
