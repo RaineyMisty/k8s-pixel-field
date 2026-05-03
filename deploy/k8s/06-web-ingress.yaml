@@ -5,9 +5,29 @@ metadata:
   namespace: pixelfield
 spec:
   rules:
-    - host: pixelfield.local
-      http:
+    - http:
         paths:
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: pixel-api-service
+                port:
+                  number: 8080
+          - path: /pixels
+            pathType: Prefix
+            backend:
+              service:
+                name: pixel-api-service
+                port:
+                  number: 8080
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: pixel-api-service
+                port:
+                  number: 8080
           - path: /
             pathType: Prefix
             backend:
