@@ -7,6 +7,7 @@ COPY package.json ./
 # Install dependencies (needed for the ws WebSocket package)
 RUN npm install --omit=dev
 
+COPY main.js ./
 COPY server.js ./
 COPY data ./data
 
