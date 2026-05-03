@@ -78,3 +78,32 @@ kubectl rollout restart deployment/web-deployment -n pixelfield
 # Check status
 kubectl get pods -n pixelfield
 ```
+
+## Load data
+
+```bash
+# Get pod name
+kubectl get pods -n pixelfield
+
+# Copy data file
+kubectl cp ~/k8s-pixel-field/services/pixel-api/data/pixels.json pixelfield/<api-pod-name>:/data/pixels.json
+
+# Reload API pod
+kubectl delete pod -n pixelfield -l app=pixel-api    # Wait until pod reload
+kubectl get pods -n pixelfield -w
+
+# Test data
+curl http://localhost/pixels
+```
+
+```bash
+# Check if the file is really get copied
+kubectl exec -n pixelfield -it <api-pod-name> -- sh
+
+# Find the file
+ls -l /data
+cat /data/pixels.json | head
+
+# If find, success
+exit
+```
