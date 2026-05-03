@@ -26,6 +26,21 @@
       white-space: pre;
     }
 
+    /* Coloured dot shows WebSocket connection state */
+    #live-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #444;
+      margin-right: 5px;
+      vertical-align: middle;
+      transition: background 0.3s;
+    }
+    #live-dot.connected    { background: #4caf50; }
+    #live-dot.reconnecting { background: #f4a430; }
+    #live-dot.error        { background: #c0392b; }
+
     #field {
       display: grid;
       gap: 1px;
@@ -39,194 +54,260 @@
       border: 1px solid #3d4557;
       box-sizing: border-box;
     }
+
+    /* Brief flash when a remote update arrives */
+    @keyframes remote-flash {
+      0%   { outline: 2px solid rgba(255, 255, 255, 0.8); }
+      100% { outline: 2px solid rgba(255, 255, 255, 0); }
+    }
+    .pixel.remote-updated {
+      animation: remote-flash 0.4s ease-out forwards;
+    }
   </style>
 </head>
 <body>
-  <div id="status">Initializing...</div>
+  <div id="status"><span id="live-dot"></span>Initializing...</div>
   <div id="field"></div>
+
   <script>
-    const CELL_SIZE = 18;
-    const GAP = 1;
+    const CELL_SIZE     = 18;
+    const GAP           = 1;
     const FIELD_PADDING = 16;
 
-    function resolveDefaultApiBase() {
-      if (window.location.protocol === "file:") {
-        return "http://127.0.0.1:8080";
-      }
+    // ── API / WS base URLs ────────────────────────────────────────────────────
 
+    function resolveApiBase() {
+      if (window.location.protocol === "file:") return "http://127.0.0.1:8080";
       const host = window.location.hostname || "127.0.0.1";
       return `${window.location.protocol}//${host}:8080`;
     }
 
-    const API_BASE = window.PIXEL_API_URL || resolveDefaultApiBase();
+    function resolveWsBase() {
+      if (window.location.protocol === "file:") return "ws://127.0.0.1:8080";
+      const host     = window.location.hostname || "127.0.0.1";
+      const wsScheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+      return `${wsScheme}//${host}:8080`;
+    }
+
+    const API_BASE = window.PIXEL_API_URL || resolveApiBase();
+    const WS_BASE  = window.PIXEL_WS_URL  || resolveWsBase();
+
+    // ── Grid state ────────────────────────────────────────────────────────────
 
     let WIDTH = 0;
     let HEIGHT = 0;
     let resizeTimer = null;
 
     const colors = [
-      "#171717", // base black
-      // The Starry Night 2 - Van Gogh
+      "#171717",  // base black
+      // The Starry Night 2 — Van Gogh
       "#f8e9a6",
       "#ffd84d",
       "#f4b430",
       "#3959bf",
       "#6c99ea",
-      "#afcef3"
+      "#afcef3",
     ];
 
-    /*
-      "#414b9e", // chinese blue
-      "#9792cb", // ceil
-      "#aa74a0", // pearly purple
-      "#e2c99e", // desert sand
-      "#852736"  // antique ruby
-    */
-
-    /*
-      // The Starry Night - Van Gogh
-      "#d4bc2a",
-      "#cdd68a",
-      "#a9bbad",
-      "#5f7eac",
-      "#4263a3",
-      "#2b3d6e"
-    */
-
-    const field = document.getElementById("field");
-    const status = document.getElementById("status");
+    const field             = document.getElementById("field");
+    const statusEl          = document.getElementById("status");
+    const liveDot           = document.getElementById("live-dot");
     const cellsByCoordinate = new Map();
 
-    function setStatus(message, isError) {
-      status.textContent = message;
-      status.style.borderColor = isError ? "#7a2d2d" : "#2b3242";
-      status.style.color = isError ? "#ffb6b6" : "#d6dae6";
-    }
-    
-    document.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-    });
+    // ── Status helpers ────────────────────────────────────────────────────────
 
-    function randomIndex() {
-      let index = Math.floor(Math.random() * colors.length);
-      return index;
+    function setStatus(message, isError = false) {
+      while (statusEl.childNodes.length > 1) statusEl.removeChild(statusEl.lastChild);
+      statusEl.appendChild(document.createTextNode(message));
+      statusEl.style.borderColor = isError ? "#7a2d2d" : "#2b3242";
+      statusEl.style.color       = isError ? "#ffb6b6" : "#d6dae6";
     }
+
+    function setLiveDot(state) { // 'connected' | 'reconnecting' | 'error' | ''
+      liveDot.className = state;
+    }
+
+    document.addEventListener("contextmenu", (e) => e.preventDefault());
+
+    // ── Cell helpers ──────────────────────────────────────────────────────────
 
     function updateGridSize() {
       const padding = FIELD_PADDING * 2;
-
-      WIDTH = Math.floor((window.innerWidth - padding) / (CELL_SIZE + GAP));
+      WIDTH  = Math.floor((window.innerWidth  - padding) / (CELL_SIZE + GAP));
       HEIGHT = Math.floor((window.innerHeight - padding) / (CELL_SIZE + GAP));
-
       field.style.gridTemplateColumns = `repeat(${WIDTH}, ${CELL_SIZE}px)`;
-      field.style.gridTemplateRows = `repeat(${HEIGHT}, ${CELL_SIZE}px)`;
+      field.style.gridTemplateRows    = `repeat(${HEIGHT}, ${CELL_SIZE}px)`;
     }
+
+    function coordinateKey(x, y) { return `${x},${y}`; }
 
     function changeColor(cell, direction) {
       let index = Number(cell.dataset.colorIndex);
       index = (index + direction + colors.length) % colors.length;
-
       cell.dataset.colorIndex = String(index);
-      cell.style.background = colors[index];
-
+      cell.style.background   = colors[index];
       return index;
     }
 
     function setCellColor(cell, colorIndex) {
       const bounded = ((colorIndex % colors.length) + colors.length) % colors.length;
       cell.dataset.colorIndex = String(bounded);
-      cell.style.background = colors[bounded];
+      cell.style.background   = colors[bounded];
     }
 
-    function coordinateKey(x, y) {
-      return `${x},${y}`;
+    // ── Remote pixel flash ────────────────────────────────────────────────────
+
+    function applyRemotePixel(pixel) {
+      const cell = cellsByCoordinate.get(coordinateKey(pixel.x, pixel.y));
+      if (!cell) return; // outside current viewport — ignore
+
+      setCellColor(cell, Number(pixel.colorIndex));
+
+      // Restart flash animation even if it was already running.
+      cell.classList.remove("remote-updated");
+      void cell.offsetWidth; // force reflow
+      cell.classList.add("remote-updated");
     }
+
+    // ── WebSocket ─────────────────────────────────────────────────────────────
+    //
+    // Message types (client → server):
+    //   { type: "pixel_update", x, y, colorIndex }
+    //
+    // Message types (server → client):
+    //   { type: "pixel_update", x, y, colorIndex }  ← broadcast from another user
+    //   { type: "pixel_ack",    x, y, colorIndex }  ← save confirmed for our own paint
+    //   { type: "error",        message }            ← validation failure
+
+    let ws = null;
+    let wsRetryDelay = 1000; // exponential back-off, capped at 30 s
+    let wsRetryTimer = null;
+
+    // Queue of pending pixel saves while the socket is not yet open.
+    // Each entry: { x, y, colorIndex, cell, prevIndex }
+    const pendingQueue = [];
+
+    function flushPendingQueue() {
+      while (pendingQueue.length > 0) {
+        const item = pendingQueue.shift();
+        sendPixelUpdate(item.x, item.y, item.colorIndex);
+      }
+    }
+
+    function connectWs() {
+      setLiveDot("reconnecting");
+
+      const socket = new WebSocket(`${WS_BASE}/ws`);
+      ws = socket;
+
+      socket.addEventListener("open", () => {
+        setLiveDot("connected");
+        wsRetryDelay = 1000;
+        setStatus(`Live  ·  ${API_BASE}`, false);
+        console.log("WebSocket connected");
+        flushPendingQueue();
+      });
+
+      socket.addEventListener("message", (event) => {
+        const msg = (() => { try { return JSON.parse(event.data); } catch { return null; } })();
+        if (!msg) return;
+
+        if (msg.type === "pixel_update") {
+          // A different user painted a pixel — apply it.
+          applyRemotePixel(msg);
+        } else if (msg.type === "pixel_ack") {
+          // Our own save was confirmed — nothing extra to do
+          // (we already applied the color optimistically on click).
+          setStatus(`Saved (${msg.x},${msg.y})  ·  ${API_BASE}`, false);
+        } else if (msg.type === "error") {
+          setStatus(`Server error: ${msg.message}  ·  ${API_BASE}`, true);
+          console.error("WS server error:", msg.message);
+        }
+      });
+
+      socket.addEventListener("close", () => {
+        ws = null;
+        setLiveDot("reconnecting");
+        console.warn(`WebSocket closed — retrying in ${wsRetryDelay} ms`);
+
+        clearTimeout(wsRetryTimer);
+        wsRetryTimer = setTimeout(() => {
+          wsRetryDelay = Math.min(wsRetryDelay * 2, 30_000);
+          connectWs();
+        }, wsRetryDelay);
+      });
+
+      socket.addEventListener("error", () => {
+        // 'close' fires right after 'error', so reconnect logic lives there.
+        setLiveDot("error");
+        console.error("WebSocket error");
+      });
+    }
+
+    /**
+     * Send a pixel paint over WebSocket.
+     * If the socket is not open yet, queue the update to send once connected.
+     */
+    function sendPixelUpdate(x, y, colorIndex) {
+      const msg = JSON.stringify({ type: "pixel_update", x, y, colorIndex });
+
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(msg);
+      } else {
+        pendingQueue.push({ x, y, colorIndex });
+      }
+    }
+
+    // ── HTTP: initial pixel load ──────────────────────────────────────────────
 
     async function loadPixels() {
       try {
-        const response = await fetch(`${API_BASE}/pixels?width=${WIDTH}&height=${HEIGHT}`);
-        if (!response.ok) {
-          throw new Error(`GET /pixels failed: ${response.status}`);
-        }
+        const res = await fetch(`${API_BASE}/pixels?width=${WIDTH}&height=${HEIGHT}`);
+        if (!res.ok) throw new Error(`GET /pixels failed: ${res.status}`);
 
-        const payload = await response.json();
-        const pixels = Array.isArray(payload.pixels) ? payload.pixels : [];
+        const payload = await res.json();
+        const pixels  = Array.isArray(payload.pixels) ? payload.pixels : [];
 
         for (const pixel of pixels) {
-          const key = coordinateKey(pixel.x, pixel.y);
-          const cell = cellsByCoordinate.get(key);
-          if (cell) {
-            setCellColor(cell, Number(pixel.colorIndex));
-          }
+          const cell = cellsByCoordinate.get(coordinateKey(pixel.x, pixel.y));
+          if (cell) setCellColor(cell, Number(pixel.colorIndex));
         }
-
-        setStatus(`API connected\n${API_BASE}`, false);
       } catch (error) {
-        setStatus(`API offline (local drawing still works)\n${API_BASE}`, true);
+        setStatus(`API offline (local drawing still works)  ·  ${API_BASE}`, true);
         console.error("Failed to load pixels:", error);
       }
     }
 
-    async function persistPixel(x, y, colorIndex) {
-      const response = await fetch(`${API_BASE}/pixels/${x}/${y}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ colorIndex })
-      });
-
-      if (!response.ok) {
-        throw new Error(`PUT /pixels/${x}/${y} failed: ${response.status}`);
-      }
-    }
+    // ── Render ────────────────────────────────────────────────────────────────
 
     async function render() {
       updateGridSize();
-
       field.innerHTML = "";
       cellsByCoordinate.clear();
 
-
-      for(let y=0; y<HEIGHT; y++) {
-        for(let x=0; x<WIDTH; x++) {
+      for (let y = 0; y < HEIGHT; y++) {
+        for (let x = 0; x < WIDTH; x++) {
           const cell = document.createElement("div");
-          
-          cell.className = "pixel";
-          // Initial with black wall
+          cell.className      = "pixel";
           cell.dataset.colorIndex = "0";
-          cell.style.background = colors[0];
+          cell.style.background   = colors[0];
           cell.dataset.x = String(x);
           cell.dataset.y = String(y);
-          // Initial with colorful wall (for test)
-          // const index = randomIndex();
-          // cell.dataset.colorIndex = String(index);
-          // cell.style.background = colors[index];
 
-          cell.onmousedown = async (event) => {
+          cell.onmousedown = (event) => {
+            if (event.button !== 0 && event.button !== 2) return;
+
+            const direction = event.button === 0 ? +1 : -1;
             const prevIndex = Number(cell.dataset.colorIndex);
+            const newIndex  = changeColor(cell, direction); // optimistic update
 
-            if (event.button === 0){
-              const newIndex = changeColor(cell, +1);
-              try {
-                await persistPixel(x, y, newIndex);
-                setStatus(`Saved (${x},${y})\n${API_BASE}`, false);
-              } catch (error) {
-                setCellColor(cell, prevIndex);
-                setStatus(`Save failed (${x},${y})\n${API_BASE}`, true);
-                console.error("Failed to save pixel:", error);
-              }
-            }
-            else if (event.button === 2) {
-              const newIndex = changeColor(cell, -1);
-              try {
-                await persistPixel(x, y, newIndex);
-                setStatus(`Saved (${x},${y})\n${API_BASE}`, false);
-              } catch (error) {
-                setCellColor(cell, prevIndex);
-                setStatus(`Save failed (${x},${y})\n${API_BASE}`, true);
-                console.error("Failed to save pixel:", error);
-              }
+            // Send over WebSocket — server will ack or error back.
+            sendPixelUpdate(x, y, newIndex);
+
+            // If the WS is down, revert the optimistic update after a timeout
+            // so the user knows the save is uncertain.
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+              setStatus(`WS offline — queued (${x},${y})  ·  ${API_BASE}`, true);
             }
           };
 
@@ -240,12 +321,11 @@
 
     window.addEventListener("resize", () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        render();
-      }, 120);
+      resizeTimer = setTimeout(() => render(), 120);
     });
 
     render();
+    connectWs();
   </script>
 </body>
 </html>
