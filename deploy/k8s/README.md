@@ -1,12 +1,19 @@
 # Kubernetes Deployment
 
-This branch deploys PixelField as two Kubernetes services:
+This branch deploys PixelField on k3s using Deployments, Services, Ingress, and PVC storage.
 
 ```text
 Browser
-  -> web-service / web-deployment
-  -> pixel-api-service / pixel-api-deployment
+  -> Ingress (Traefik, port 80)
+       ├── /       -> web-service -> web-deployment
+       ├── /pixels -> pixel-api-service -> pixel-api-deployment
+       ├── /ws     -> pixel-api-service -> pixel-api-deployment
+       └── /health -> pixel-api-service -> pixel-api-deployment
+
+pixel-api-deployment
   -> pixel-data-pvc
+  -> Persistent Volume
+  -> pixels.json
 ```
 
 ## Files
