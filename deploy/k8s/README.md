@@ -20,44 +20,61 @@ Browser
 - `06-web-ingress.yaml`: optional Ingress entry point.
 - `07-web-hpa.yaml`: scales the web deployment based on CPU usage.
 
-## Run on Minikube
+## Run on k3s
 
 ```bash
-minikube start
-chmod +x scripts/*.sh
-./scripts/build-minikube-images.sh
-./scripts/deploy-k8s.sh
-kubectl port-forward -n pixelfield svc/web-service 5500:80
+# Build docker images
+cd ~/k8s-pixel-field/services/pixel-api
+docker build -t pixelfield-api:latest .
+
+cd ~/k8s-pixel-field/services/web
+docker build -t pixelfield-web:latest .
+
+# Import images to k3s
+docker save pixelfield-api:latest | sudo k3s ctr -n k8s.io images import -
+docker save pixelfield-web:latest | sudo k3s ctr -n k8s.io images import -
+
+# Check images
+sudo k3s ctr -n k8s.io images list | grep pixelfield
+
+# Apply YAML
+cd ~/k8s-pixel-field
+kubectl apply -f deploy/k8s/00-namespace.yaml
+kubectl apply -f deploy/k8s/01-pixel-data-pvc.yaml
+kubectl apply -f deploy/k8s/02-pixel-api-deployment.yaml
+kubectl apply -f deploy/k8s/03-pixel-api-service.yaml
+kubectl apply -f deploy/k8s/04-web-deployment.yaml
+kubectl apply -f deploy/k8s/05-web-service.yaml
+kubectl apply -f deploy/k8s/06-web-ingress.yaml
+
+# Check status
+kubectl get all -n pixelfield
+kubectl get pvc -n pixelfield
+kubectl get ingress -n pixelfield
+
+# Test website
+curl http://localhost/health    # Expect {"status":"ok","clients":0}
+curl -I http://localhost/       # Expect 200 OK
 ```
 
-Then open:
-
-```text
-http://localhost:5500
-```
-
-## Test self-healing
+## Update step
 
 ```bash
-kubectl delete pod -n pixelfield -l app=pixelfield-web
-kubectl get pods -n pixelfield -w
-```
+# After modified file
+cd ~/k8s-pixel-field/services/pixel-api
+docker build -t pixelfield-api:latest .
 
-Kubernetes recreates the deleted pod.
+cd ~/k8s-pixel-field/services/web
+docker build -t pixelfield-web:latest .
 
-## Test persistence
+# Import images
+docker save pixelfield-api:latest | sudo k3s ctr -n k8s.io images import -
+docker save pixelfield-web:latest | sudo k3s ctr -n k8s.io images import -
 
-Change some pixels, then delete the API pod:
+# Restart deployments
+kubectl rollout restart deployment/pixel-api-deployment -n pixelfield
+kubectl rollout restart deployment/web-deployment -n pixelfield
 
-```bash
-kubectl delete pod -n pixelfield -l app=pixel-api
-```
-
-After Kubernetes recreates the pod, refresh the page. Pixel data should remain because it is stored through the PVC.
-
-## Test scaling
-
-```bash
-kubectl scale deployment web-deployment -n pixelfield --replicas=3
+# Check status
 kubectl get pods -n pixelfield
 ```
