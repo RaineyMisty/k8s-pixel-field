@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pixel-api-deployment
+  namespace: pixelfield
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pixel-api
+  template:
+    metadata:
+      labels:
+        app: pixel-api
+    spec:
+      containers:
+        - name: pixel-api
+          image: pixelfield-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8080"
+            - name: DATA_DIR
+              value: "/data"
+            - name: DATA_FILE
+              value: "/data/pixels.json"
+          volumeMounts:
+            - name: pixel-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+      volumes:
+        - name: pixel-data
+          persistentVolumeClaim:
+            claimName: pixel-data-pvc
