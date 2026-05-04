@@ -12,6 +12,15 @@
   A real-time collaborative pixel canvas deployed on k8s.
 </p>
 
+<p align="center">
+  <a href="https://github.com/RaineyMisty/k8s-pixel-field">GitHub Repository</a>
+  ·
+  <a href="#system-architecture">Architecture</a>
+  ·
+  <a href="#project-structure">Structure</a>
+</p>
+
+
 ## Introduction
 PixelField is a shared pixel where users can leave their marks in a continuously evolving two-dimensional space.
 
